@@ -15,6 +15,13 @@ class BerandaScreen extends StatefulWidget {
 
 class _BerandaScreenState extends State<BerandaScreen> {
   final List<Map<String, dynamic>> newsList = [];
+  String _searchQuery = '';
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   void _addNews() async {
     final newNews = await showAddNewsDialog(context);
@@ -25,11 +32,43 @@ class _BerandaScreenState extends State<BerandaScreen> {
     }
   }
 
+  Widget _buildSearchBar({double? width, double? height, double radius = 12, double fontSize = 16}) {
+    // Komponen search bar reusable
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: width,
+      height: height,
+      child: Material(
+        color: Colors.transparent,
+        child: TextField(
+          onChanged: (query) {
+            setState(() {
+              _searchQuery = query;
+            });
+          },
+          decoration: InputDecoration(
+            hintText: 'Cari berita...',
+            prefixIcon: const Icon(Icons.search, size: 18, color: Colors.blueAccent),
+            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+            filled: true,
+            fillColor: Colors.blue[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(radius),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          style: TextStyle(fontSize: fontSize),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           SliverAppBar(
             backgroundColor: Colors.white,
@@ -51,7 +90,6 @@ class _BerandaScreenState extends State<BerandaScreen> {
                 padding: const EdgeInsets.only(right: 16.0),
                 child: GestureDetector(
                   onTap: () {
-                    // Navigasi ke halaman profil user
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const UserProfileScreen()),
@@ -67,7 +105,6 @@ class _BerandaScreenState extends State<BerandaScreen> {
             flexibleSpace: LayoutBuilder(
               builder: (context, constraints) {
                 final percent = ((constraints.maxHeight - kToolbarHeight) / (140 - kToolbarHeight)).clamp(0.0, 1.0);
-                // Gunakan curve untuk animasi lebih mulus dan ringan
                 final curvedPercent = Curves.fastOutSlowIn.transform(percent);
                 final logoSize = 30 + (77 - 30) * curvedPercent;
                 final fontSize = 25 + (55 - 20) * curvedPercent;
@@ -80,6 +117,7 @@ class _BerandaScreenState extends State<BerandaScreen> {
                 final double animatedTop = startTop + (endTop - startTop) * (1 - curvedPercent);
                 return Stack(
                   children: [
+                    // Logo + Tulisan Bewara
                     AnimatedPositioned(
                       duration: const Duration(milliseconds: 180),
                       curve: Curves.fastOutSlowIn,
@@ -123,7 +161,6 @@ class _BerandaScreenState extends State<BerandaScreen> {
               },
             ),
           ),
-
           if (newsList.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
@@ -131,7 +168,6 @@ class _BerandaScreenState extends State<BerandaScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Spacer(),
-                  // Ucapan selamat datang di tengah-tengah
                   Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 42),
@@ -154,7 +190,6 @@ class _BerandaScreenState extends State<BerandaScreen> {
                     ),
                   ),
                   const Spacer(),
-                  // Desain khusus di bawah logo (misal: garis dekoratif)
                   Padding(
                     padding: const EdgeInsets.only(top: 24.0),
                     child: Row(
@@ -194,12 +229,14 @@ class _BerandaScreenState extends State<BerandaScreen> {
               ),
             )
           else ...[
+            // List Berita + Search Bar dalam satu baris (sejajar)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.list_alt, color: Colors.blueAccent, size: 28),
+                    const Icon(Icons.list_alt, color: Colors.blueAccent, size: 25),
                     const SizedBox(width: 8),
                     Text(
                       'List Berita',
@@ -217,23 +254,28 @@ class _BerandaScreenState extends State<BerandaScreen> {
                         ],
                       ),
                     ),
-                    const Spacer(),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.blue[100],
-                        borderRadius: BorderRadius.circular(10),
+                    const SizedBox(width: 16),
+                    // Tampilkan search bar selalu di bawah judul List Berita
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: _buildSearchBar(width: double.infinity, height: 40, radius: 12, fontSize: 15),
                       ),
-                      child: const Icon(Icons.arrow_downward, color: Colors.blueAccent, size: 20),
                     ),
                   ],
                 ),
               ),
             ),
-
+            // List berita
             NewsList(
-              newsList: newsList,
+              newsList: _searchQuery.isEmpty
+                  ? newsList
+                  : newsList.where((news) {
+                      final title = (news['title'] ?? '').toString().toLowerCase();
+                      final summary = (news['summary'] ?? '').toString().toLowerCase();
+                      final query = _searchQuery.toLowerCase();
+                      return title.contains(query) || summary.contains(query);
+                    }).toList(),
               onTapNews: (news) {
                 showModalBottomSheet(
                   context: context,
